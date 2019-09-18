@@ -9,14 +9,17 @@ const database = require('./database')
 
 const app = dialogflow({})
   
-app.intent('Age Offset Request', async (conv, params) => {
+app.intent('AgeOffsetRequest', async (conv, params) => {
   //console.log("Conv: " + JSON.stringify(conv),"Params:" + JSON.stringify(params))
-  const name = params.person.name;
-  const offset = params.number;
-
+  const name = params.person.name
+  const offset = params.number
+  conv.contexts.delete('DefaultContext')
+  //conv.contexts.set('DefaultContext', 3)
   try {
     let human = await database.getHuman(params.person.name)
     //console.log("Human object returned: " + JSON.stringify(human))
+
+    //
     if (human) {
       let newAge = parseInt(human.Age) + parseInt(offset);
       return conv.ask(`${name}, will be ${newAge} in ${offset} years.`)
@@ -27,33 +30,29 @@ app.intent('Age Offset Request', async (conv, params) => {
   } catch (err) {
     conv.close("Could not read from database.")
     throw err
-  }
-
-  
-
-
-
-
-    // let offset = params[number]
-    // let name = params[person]
-    // try {
-      
-    //   let age = await api.getHumanAge(name)
-    //   if (!age) {
-    //     conv.ask(`Sorry, something went wrong.`)
-    //     return
-    //   }
-    //   let newAge = age + offset
-    //   conv.ask(`${name}, will be ${newAge} in ${offset} years.`)
-      
-    //   return
-    // } catch(err) {
-    //     conv.ask(`Sorry, something went wrong.`)
-    //     throw err
-    // }
+  }  
 })
   
-  
+app.intent('NoInput', (conv) => {
+  const repromptCount = parseInt(conv.arguments.get('REPROMPT_COUNT'))
+  if (repromptCount === 0) {
+      conv.ask(`Are you still there?`);
+    } else if (repromptCount === 1) {
+      conv.close(`Okay let's try this again later.`);
+    }
+  return
+})
+
+app.intent('Reprompt', (conv) => {
+  const repromptCount = parseInt(conv.arguments.get('REPROMPT_COUNT'));
+  if (repromptCount === 0) {
+  conv.ask(`What was that?`);
+  } else if (repromptCount === 1) {
+  conv.ask(`Sorry I didn't catch that. Could you repeat yourself?`);
+  } else if (conv.arguments.get('IS_FINAL_REPROMPT')) {
+  conv.close(`Okay let's try this again later.`);
+  }
+});
 
 app.intent('Exit Conversation', (conv) => {
     conv.close(new SimpleResponse({
